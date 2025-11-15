@@ -41,20 +41,6 @@ python classification_model.py --results_dir results --k 1 --svm_kernel linear -
 
 8. Use Jupyter notebooks (notebooks/) for visualization (choosing components, viewing confusion matrices, ROC/PR curves, etc).
 
-## Directory Structure
-
-project_root/
-├── preprocess.py # Preprocessing pipeline
-├── dimensionality_reduction.py # PCA pipeline
-├── classification_model.py # Model training & evaluation
-├── requirements.txt # Project dependencies
-├── notebooks/ # Exploratory analysis notebooks
-├── config.json # For pipeline path tracking
-├── results/ # Models, result files, results config
-└── data/
-├── raw/ # Original images/masks
-├── processed/ # Preprocessed and split features
-
 ## Reproducibility and Tracking
 
 1. All scripts read/write config.json and update with output paths
