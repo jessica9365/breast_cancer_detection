@@ -112,6 +112,6 @@ def main(save_dir, n_components):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Apply PCA to processed features.")
     parser.add_argument('--save_dir', type=str, default="/Users/jessica/Documents/GitHub/breast_cancer_detection/data/processed", help='Directory to save PCA model and features (default: same as processed data dir)')
-    parser.add_argument('--n_components', type=int, default=70, help='Number of PCA components to use (default: 70)')
+    parser.add_argument('--n_components', type=int, default=150, help='Number of PCA components to use (default: 70)')
     args = parser.parse_args()
     main(args.save_dir, args.n_components)

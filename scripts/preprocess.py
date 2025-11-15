@@ -171,11 +171,11 @@ def main(data_dir, save_dir):
     # Class names (adjust as needed)
     classes = ["Benign", "Malignant", "Normal"]
 
-    # Rename files for consistency
-    data_dir = 'data_dir'
-    for cls in ['benign', 'malignant', 'normal']:
-        folder = os.path.join(data_dir, cls)
-        rename_files_for_consistency(folder, cls)
+    # # Rename files for consistency
+    # data_dir = 'data_dir'
+    # for cls in ['benign', 'malignant', 'normal']:
+    #     folder = os.path.join(data_dir, cls)
+    #     rename_files_for_consistency(folder, cls)
 
     # Load images, masks, and labels
     images, masks, labels = load_images_with_masks(data_dir, classes)
@@ -197,12 +197,12 @@ def main(data_dir, save_dir):
     # Oversample minority then undersample majority for balance
     smote = SMOTE(random_state=42)
     X_resampled, y_resampled = smote.fit_resample(X, y)
-    rus = RandomUnderSampler(random_state=42)
-    X_balanced, y_balanced = rus.fit_resample(X_resampled, y_resampled)
+    # rus = RandomUnderSampler(random_state=42)
+    # X_balanced, y_balanced = rus.fit_resample(X_resampled, y_resampled)
 
     # Split data: 70% train, 15% val, 15% test
     X_trainval, X_test, y_trainval, y_test = train_test_split(
-        X_balanced, y_balanced, test_size=0.15, random_state=42, stratify=y_balanced)
+        X_resampled, y_resampled, test_size=0.15, random_state=42, stratify=y_resampled)
     X_train, X_val, y_train, y_val = train_test_split(
         X_trainval, y_trainval, test_size=0.1765, random_state=42, stratify=y_trainval)
 
