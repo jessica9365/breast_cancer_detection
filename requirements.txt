@@ -1,0 +1,10 @@
+numpy>=1.21
+opencv-python>=4.5
+scikit-learn>=1.2
+imbalanced-learn>=0.10
+matplotlib>=3.5
+seaborn>=0.11
+joblib>=1.2
+imgaug>=0.4
+scikit-image>=0.19
+notebook>=6.4

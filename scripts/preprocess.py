@@ -1,10 +1,15 @@
 import os
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-import re
+import argparse
 from imgaug import augmenters as iaa
 from sklearn.model_selection import train_test_split
+from skimage.feature import graycomatrix, graycoprops
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import RandomUnderSampler
+import json
+import re
+
 
 def load_images_with_masks(data_dir, classes):
     """
@@ -36,6 +41,20 @@ def load_images_with_masks(data_dir, classes):
                 labels.append(label)
     return images, masks, labels
 
+def rename_files_for_consistency(folder, class_name):
+    for fname in os.listdir(folder):
+        if fname.endswith('.png'):
+            # Look for patterns like benign (12).png or benign (12)_mask.png
+            match = re.match(rf'{class_name} \((\d+)\)(.*?)\.png', fname)
+            if match:
+                num = match.group(1)
+                suffix = match.group(2)  # '_mask' or ''
+                # Build new filename
+                new_fname = f'{class_name}_{num}{suffix}.png'
+                os.rename(os.path.join(folder, fname), os.path.join(folder, new_fname))
+                # print(f'Renamed: {fname} -> {new_fname}')
+
+
 def apply_mask_and_crop(image, mask):
     """
     Crops the input image to the bounding box of the mask region.
@@ -55,19 +74,6 @@ def apply_mask_and_crop(image, mask):
     else:
         return image  # fallback if no contour found
     
-def concatenate_mask_channel(image, mask):
-    """
-    Adds mask as a second channel to the image.
-    Args:
-        image (np.array): Grayscale image.
-        mask (np.array): Grayscale mask or None.
-    Returns:
-        img_with_mask (np.array): 2-channel image (image, mask).
-    """
-    if mask is None:
-        mask = np.zeros_like(image)
-    return np.stack([image, mask], axis=-1)
-
 def resize_image(image, target_size=(128, 128)):
     """
     Resizes image to target shape for consistent model input.
@@ -88,6 +94,28 @@ def normalize_image(image):
         norm_img (np.array): Image with pixel values in [0, 1].
     """
     return image.astype(np.float32) / 255.0
+
+def extract_glcm_features(image):
+    """
+    Extracts basic texture features using the Gray-Level Co-occurrence Matrix (GLCM).
+    Args:
+        image (np.array): Input grayscale image, normalized in [0, 1] or uint8.
+    Returns:
+        features (np.array): Array of 4 scalar texture features: contrast, homogeneity, energy, correlation (shape: (4,)).
+    Notes:
+        - Converts input to uint8 if necessary for GLCM calculation.
+        - Uses a distance of 1 and angle of 0 degrees for GLCM.
+    """
+    if image.ndim == 3:
+        image = image[..., 0]
+    glcm = graycomatrix((image*255).astype('uint8'),
+                       distances=[1], angles=[0], levels=256,
+                       symmetric=True, normed=True)
+    contrast = graycoprops(glcm, 'contrast')[0,0]
+    homogeneity = graycoprops(glcm, 'homogeneity')[0,0]
+    energy = graycoprops(glcm, 'energy')[0,0]
+    correlation = graycoprops(glcm, 'correlation')[0,0]
+    return np.array([contrast, homogeneity, energy, correlation], dtype=np.float32) 
 
 def augment_image(image):
     """
@@ -111,7 +139,7 @@ def save_processed_data(X, y, save_dir):
     """
     Saves processed images and labels to disk as NumPy arrays.
     Args:
-        X (np.array): Image data array (N, H, W) or (N, H, W, C).
+        X (np.array): Image/feature data array (N, features).
         y (np.array): Labels array (N,).
         save_dir (str): Directory to save .npy files.
     """
@@ -120,54 +148,75 @@ def save_processed_data(X, y, save_dir):
     np.save(os.path.join(save_dir, "X.npy"), X)
     np.save(os.path.join(save_dir, "y.npy"), y)
 
+def update_config(config_path, **kwargs):
+    """
+    Update/add key-value pairs in an existing config file (JSON), or create if missing.
+    Args:
+        config_path (str): Path to config file
+        kwargs: key-value pairs to write or update, e.g. processed_data_dir, pca_output_dir
+    """
+    # Read old config if it exists
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            config = json.load(f)
+    else:
+        config = {}
+    # Update with any new keys
+    config.update(kwargs)
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
 
-def main():
-    # Specify dataset root and classes
-    data_dir = "/Users/jessica/Documents/GitHub/breast_cancer_detection/data/raw"  # adjust path
-    classes = ["Benign", "Malignant", "Normal"]  # adjust based on your folder names
+
+def main(data_dir, save_dir):
+    # Class names (adjust as needed)
+    classes = ["Benign", "Malignant", "Normal"]
+
+    # Rename files for consistency
+    data_dir = 'data_dir'
+    for cls in ['benign', 'malignant', 'normal']:
+        folder = os.path.join(data_dir, cls)
+        rename_files_for_consistency(folder, cls)
 
     # Load images, masks, and labels
     images, masks, labels = load_images_with_masks(data_dir, classes)
 
-    processed_imgs = []
-
+    all_features = []
     for img, mask in zip(images, masks):
-        # Crop image by lesion mask
         cropped = apply_mask_and_crop(img, mask)
-
-        # # Concatenate mask as channel
-        # img_masked = concatenate_mask_channel(cropped, mask)
-
-        # Resize to consistent shape
         resized = resize_image(cropped, target_size=(128, 128))
-
-        # Normalize pixel values
         normed = normalize_image(resized)
+        # Optionally augment: aug = augment_image(normed)
 
-        # Optionally augment data here, e.g., only on training set
-        aug = augment_image(normed)  # Uncomment to apply augmentation
+        features = extract_glcm_features(normed)
+        features_scaled = (features - np.mean(features)) / (np.std(features) + 1e-8)
+        all_features.append(np.concatenate([normed.flatten(), features_scaled]))
 
-        processed_imgs.append(aug)  # Or aug
-
-    # Convert lists to NumPy arrays
-    X = np.array(processed_imgs)
+    X = np.array(all_features)
     y = np.array(labels)
 
-    # Split data: 70% train, 15% validation, 15% test
+    # Oversample minority then undersample majority for balance
+    smote = SMOTE(random_state=42)
+    X_resampled, y_resampled = smote.fit_resample(X, y)
+    rus = RandomUnderSampler(random_state=42)
+    X_balanced, y_balanced = rus.fit_resample(X_resampled, y_resampled)
+
+    # Split data: 70% train, 15% val, 15% test
     X_trainval, X_test, y_trainval, y_test = train_test_split(
-        X, y, test_size=0.15, random_state=42, stratify=y)
-
+        X_balanced, y_balanced, test_size=0.15, random_state=42, stratify=y_balanced)
     X_train, X_val, y_train, y_val = train_test_split(
-        X_trainval, y_trainval, test_size=0.1765, random_state=42, stratify=y_trainval)  # 0.1765 ~15/85
+        X_trainval, y_trainval, test_size=0.1765, random_state=42, stratify=y_trainval)
 
-    # Save datasets separately
-    save_dir = "/Users/jessica/Documents/GitHub/breast_cancer_detection/data/processed" # adjust path
+    # Save datasets
     save_processed_data(X_train, y_train, os.path.join(save_dir, "train"))
     save_processed_data(X_val, y_val, os.path.join(save_dir, "val"))
     save_processed_data(X_test, y_test, os.path.join(save_dir, "test"))
-
+    update_config('config.json', processed_data_dir=save_dir)
     print("Preprocessing complete. Data saved in train, val, test folders.")
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Preprocess breast ultrasound dataset.")
+    parser.add_argument('--data_dir', type=str, default="/Users/jessica/Documents/GitHub/breast_cancer_detection/data/raw", help='Root data folder with class subfolders')
+    parser.add_argument('--save_dir', type=str, default="/Users/jessica/Documents/GitHub/breast_cancer_detection/data/processed", help='Folder to save processed splits')
+    args = parser.parse_args()
+    main(args.data_dir, args.save_dir)
