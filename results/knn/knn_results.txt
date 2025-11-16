@@ -1,0 +1,18 @@
+Model: kNN_k=3
+Accuracy: 0.893
+
+Classification Report:
+              precision    recall  f1-score   support
+
+      Benign       0.90      0.83      0.86        65
+   Malignant       0.83      0.88      0.85        66
+      Normal       0.96      0.97      0.96        66
+
+    accuracy                           0.89       197
+   macro avg       0.89      0.89      0.89       197
+weighted avg       0.89      0.89      0.89       197
+
+Confusion Matrix:
+54 10 1
+6 58 2
+0 2 64

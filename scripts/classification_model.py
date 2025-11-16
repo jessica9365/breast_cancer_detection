@@ -10,6 +10,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import SVC
 import joblib
+import lightgbm as lgb
+import xgboost as xgb
 
 #Important class names are declared globally for code clarity 
 class_names = ["Benign", "Malignant", "Normal"]
@@ -102,6 +104,36 @@ def train_svm(X_train, y_train, kernel='rbf', C=1.0, gamma='scale'):
     svm.fit(X_train, y_train)
     return svm
 
+def train_lightGBM(X_train, y_train, X_val, y_val):
+    lgb_clf = lgb.LGBMClassifier(objective='multiclass', num_class=3, random_state=42, n_estimators=100)
+    lgb_clf.fit(
+        X_train, y_train,
+        eval_set=[(X_val, y_val)],
+        eval_metric='multi_logloss',
+        callbacks=[lgb.early_stopping(20)],
+    )
+
+    return lgb_clf
+
+def train_XGBoost(X_train, y_train, X_val, y_val):
+    # Initialize model
+    xgb_clf = xgb.XGBClassifier(
+        objective='multi:softprob',
+        num_class=3,
+        random_state=42,
+        n_estimators=100,
+        eval_metric='mlogloss',
+        early_stopping_rounds=20
+    )
+
+    xgb_clf.fit(
+        X_train, y_train,
+        eval_set=[(X_val, y_val)],
+        verbose=True
+    )
+
+    return xgb_clf
+
 def update_results_config(json_path, results_dir, model_paths):
         # Read (or create) and update results info
         config = {}
@@ -148,28 +180,52 @@ def main():
     # --- Logistic Regression ---
     logreg = train_logistic_regression(X_train, y_train)
     y_pred_lr, y_prob_lr = evaluate_model(logreg, X_test, y_test, set_name="LogReg Test")
-    model_path_lr = os.path.join(args.results_dir, "logreg_model.pkl")
+    logreg_dir = os.path.join(args.results_dir, "Logistic_Regression")
+    os.makedirs(logreg_dir, exist_ok=True)
+    model_path_lr = os.path.join(logreg_dir, "logreg_model.pkl")
     joblib.dump(logreg, model_path_lr)
 
     # --- kNN ---
     knn = train_knn_weighted(X_train, y_train, k=args.k)
     y_pred_knn, y_prob_knn = evaluate_model(knn, X_test, y_test, set_name="kNN Test")
-    model_path_knn = os.path.join(args.results_dir, "knn_model.pkl")
+    knn_dir = os.path.join(args.results_dir, "knn")
+    os.makedirs(knn_dir, exist_ok=True)
+    model_path_knn = os.path.join(knn_dir, "knn_model.pkl")
     joblib.dump(knn, model_path_knn)
 
     # --- SVM ---
     svm = train_svm(X_train, y_train, kernel=args.svm_kernel, C=args.svm_C, gamma=args.svm_gamma)
     y_pred_svm, y_prob_svm = evaluate_model(svm, X_test, y_test, set_name="SVM Test")
-    model_path_svm = os.path.join(args.results_dir, "svm_model.pkl")
+    svm_dir = os.path.join(args.results_dir, "svm")
+    os.makedirs(svm_dir, exist_ok=True)
+    model_path_svm = os.path.join(svm_dir, "svm_model.pkl")
     joblib.dump(svm, model_path_svm)
 
-    save_results_text(os.path.join(args.results_dir, "logreg_results.txt"), y_test, y_pred_lr, "LogisticRegression")
-    save_results_text(os.path.join(args.results_dir, "knn_results.txt"), y_test, y_pred_knn, f"kNN_k={args.k}")
-    save_results_text(os.path.join(args.results_dir, "svm_results.txt"), y_test, y_pred_svm, f"SVM_{args.svm_kernel}")
+    # --- LightGBM ---
+    lgb_clf = train_lightGBM(X_train, y_train, X_val, y_val)
+    y_pred_lightGBM, y_prob_lightGBM = evaluate_model(lgb_clf, X_test, y_test, set_name="LightGBM Test")
+    lgb_dir = os.path.join(args.results_dir, "LightGBM")
+    os.makedirs(lgb_dir, exist_ok=True)
+    model_path_lgb = os.path.join(lgb_dir, "LightGBM_model.pkl")
+    joblib.dump(lgb_clf, model_path_lgb)
+
+    # --- XGBoost ---
+    xgb_clf = train_XGBoost(X_train, y_train, X_val, y_val)
+    y_pred_XGBoost, y_prob_XGBoost = evaluate_model(xgb_clf, X_test, y_test, set_name="XGBoost Test")
+    xgb_dir = os.path.join(args.results_dir, "XGBoost")
+    os.makedirs(xgb_dir, exist_ok=True)
+    model_path_xgb = os.path.join(xgb_dir, "XGBoost_model.pkl")
+    joblib.dump(xgb_clf, model_path_xgb)
+
+    save_results_text(os.path.join(logreg_dir, "logreg_results.txt"), y_test, y_pred_lr, "LogisticRegression")
+    save_results_text(os.path.join(knn_dir, "knn_results.txt"), y_test, y_pred_knn, f"kNN_k={args.k}")
+    save_results_text(os.path.join(svm_dir, "svm_results.txt"), y_test, y_pred_svm, f"SVM_{args.svm_kernel}")
+    save_results_text(os.path.join(lgb_dir, "lightGBM_results.txt"), y_test, y_pred_lightGBM, "LightGBM")
+    save_results_text(os.path.join(xgb_dir, "XGBoost_results.txt"), y_test, y_pred_XGBoost, "XGBoost")
 
     update_results_config(os.path.join(args.results_dir, "results_config.json"),
                          args.results_dir,
-                         {"logistic": model_path_lr, "knn": model_path_knn, "svm": model_path_svm})
+                         {"logistic": model_path_lr, "knn": model_path_knn, "svm": model_path_svm, "lightGBM": model_path_lgb , "XGBoost": model_path_xgb})
     
     print(f"All results and models have been saved in: {args.results_dir}")
     

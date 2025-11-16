@@ -1,0 +1,18 @@
+Model: SVM_rbf
+Accuracy: 0.914
+
+Classification Report:
+              precision    recall  f1-score   support
+
+      Benign       0.95      0.82      0.88        65
+   Malignant       0.84      0.92      0.88        66
+      Normal       0.97      1.00      0.99        66
+
+    accuracy                           0.91       197
+   macro avg       0.92      0.91      0.91       197
+weighted avg       0.92      0.91      0.91       197
+
+Confusion Matrix:
+53 12 0
+3 61 2
+0 0 66

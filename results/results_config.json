@@ -1,0 +1,10 @@
+{
+  "results_dir": "/Users/jessica/Documents/GitHub/breast_cancer_detection/results",
+  "model_paths": {
+    "logistic": "/Users/jessica/Documents/GitHub/breast_cancer_detection/results/Logistic_Regression/logreg_model.pkl",
+    "knn": "/Users/jessica/Documents/GitHub/breast_cancer_detection/results/knn/knn_model.pkl",
+    "svm": "/Users/jessica/Documents/GitHub/breast_cancer_detection/results/svm/svm_model.pkl",
+    "lightGBM": "/Users/jessica/Documents/GitHub/breast_cancer_detection/results/LightGBM/LightGBM_model.pkl",
+    "XGBoost": "/Users/jessica/Documents/GitHub/breast_cancer_detection/results/XGBoost/XGBoost_model.pkl"
+  }
+}

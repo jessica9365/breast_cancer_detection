@@ -1,0 +1,18 @@
+Model: LogisticRegression
+Accuracy: 0.873
+
+Classification Report:
+              precision    recall  f1-score   support
+
+      Benign       0.85      0.80      0.83        65
+   Malignant       0.80      0.83      0.81        66
+      Normal       0.97      0.98      0.98        66
+
+    accuracy                           0.87       197
+   macro avg       0.87      0.87      0.87       197
+weighted avg       0.87      0.87      0.87       197
+
+Confusion Matrix:
+52 13 0
+9 55 2
+0 1 65
