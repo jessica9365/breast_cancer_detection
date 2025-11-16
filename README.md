@@ -10,7 +10,7 @@ This project provides a reproducible ML workflow to distinguish Benign, Malignan
 
 1. Flexible, command-line controlled preprocessing (preprocess.py) with GLCM texture features and class balancing
 2. Dimensionality reduction (dimensionality_reduction.py) using PCA (configurable number of components)
-3. Multiple classifiers: Logistic Regression, k-Nearest Neighbor (kNN), Support Vector Machine (SVM)
+3. Multiple classifiers: Logistic Regression, k-Nearest Neighbor (kNN), Support Vector Machine (SVM), LightGBM, XGBoost
 4. Clean separation of exploratory .ipynb notebooks and reproducible .py scripts
 5. All paths and parameters configurable via CLI and automatically tracked in config/results files
 6. Visualizations for model performance (confusion matrix, precision-recall, ROC; in notebooks)
